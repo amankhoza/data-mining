@@ -31,13 +31,13 @@ def removeJunk(soup):
     [script.extract() for script in soup('script')]  # remove scripts
 
 
-def htmlToText(soup):
+def extractTextFromHTML(soup):
     texts = soup.findAll(text=True)
     text = ' '.join([item.strip() for item in texts])
     return text
 
 
-def retrieveLinksInHTML(soup):
+def extractLinksFromHTML(soup):
     links = soup.find_all('a', href=True)
     return [link['href'] for link in links]  # might need to tweak to remove mailtos
 
@@ -58,8 +58,8 @@ for filePath in filePaths:
 
     removeJunk(soup)
 
-    text = htmlToText(soup)
-    links = retrieveLinksInHTML(soup)
+    text = extractTextFromHTML(soup)
+    links = extractLinksFromHTML(soup)
 
     # print(filePath)
     # print(text)
