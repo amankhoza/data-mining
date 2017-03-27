@@ -1,6 +1,8 @@
 import sys
 import os
 
+from Tools.scripts.treesync import raw_input
+
 
 def progress(count, total, status='Complete'):
     bar_len = 60

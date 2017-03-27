@@ -1,6 +1,4 @@
-# Ignore everything
-*
+.idea
+SearchEngine/index
+SearchEngine/log
 
-# Except python scripts
-!.gitignore
-!*.py
