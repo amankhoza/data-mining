@@ -350,6 +350,7 @@ class Document(object):
         self.keywords = kwargs.get('keywords', "")
         self.content = kwargs.get('content', "")
         self.links = kwargs.get('links', "")
+        self.pagerank = 1
 
     def __str__(self):
         return "Path: {}\nURL: {}\nTitle: {}\nDescription: {}\nKeywords: {}\nContent: {}\nLinks: {}\n".format(self.path,
@@ -358,4 +359,5 @@ class Document(object):
                                                                                                               self.description,
                                                                                                               self.keywords,
                                                                                                               self.content,
-                                                                                                              self.links)
+                                                                                                              self.links,
+                                                                                                              self.pagerank)
