@@ -1,4 +1,5 @@
 .idea
 SearchEngine/index
 SearchEngine/log
+SearchEngine/__pycache__
 
