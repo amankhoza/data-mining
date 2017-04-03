@@ -1,6 +1,6 @@
 
 # Dependencies
-In order to be able to run the code in this project, you must install the following python dependencies:
+In order to run the code in this project, the following python dependencies must be installed:
 
 `pip install beautifulsoup4`
 
