@@ -20,8 +20,9 @@ schema = Schema(url=ID(stored=True),
                 path=ID(stored=True),
                 title=TEXT(stored=True),
                 description=TEXT(stored=True),
-                content=TEXT(analyzer=StemmingAnalyzer()),
                 keywords=KEYWORD,
+                links_in_keywords=KEYWORD(stored=True),
+                content=TEXT(analyzer=StemmingAnalyzer()),
                 pagerank=NUMERIC(stored=True, sortable=True))
 
 
@@ -52,9 +53,10 @@ def index_documents(docs):
             writer.add_document(url=doc.url,
                                 path=doc.path,
                                 title=doc.title,
+                                keywords=doc.keywords,
+                                links_in_keywords=doc.links_in_keywords,
                                 description=doc.description,
                                 content=doc.content,
-                                keywords=doc.keywords,
                                 pagerank=doc.pagerank)
 
         logger.info('%s Writing index to file', MSG_START)
@@ -80,7 +82,12 @@ def search(query, limit=10, ranking="BM25"):
     else:
         raise ValueError("ranking must be one of these: 'bm25', 'tf_idf', 'pagerank")
 
-    ix = index.open_dir(INDEX_BASE_DIR)
+    try:
+        ix = index.open_dir(INDEX_BASE_DIR)
+    except Exception as e:
+        print("Could not open index file: %s" % e)
+        print("To be able to search, an index has to be created first. Use index_website.py to create the index.")
+        exit()
 
     qp = QueryParser("content", schema=ix.schema)
     q = qp.parse(query)

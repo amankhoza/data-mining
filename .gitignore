@@ -1,5 +1,4 @@
-.idea
-SearchEngine/index
-SearchEngine/log
-SearchEngine/__pycache__
-
+*.iml
+.idea/
+SearchEngine/index/
+SearchEngine/log/

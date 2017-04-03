@@ -1,3 +1,4 @@
+
 import logging
 import os
 import pickle
@@ -6,71 +7,71 @@ import re
 from bs4 import BeautifulSoup
 from bs4 import Comment
 
-from utils import print_progress, profile, log_prof_data, MSG_START, MSG_SUCCESS, MSG_FAILED
+from utils import print_progress, profile, log_prof_data, MSG_START, MSG_SUCCESS, MSG_FAILED, get_files, process_batch
+
 
 logger = logging.getLogger(__name__)
+docs_cache_dir = 'docs_cache/'
 
 
 class UCLParser(object):
     NO_INDEX_COMMENT = 'noindex'
     NO_INDEX_END_COMMENT = 'endnoindex'
+    PARSER = 'lxml'
 
-    def __init__(self, **kwargs):
-        self.PARSER = kwargs.get('parser', 'lxml')
-        self.MIN_DATA_LEN = kwargs.get('min_data_len', 3000)
-
-        self.local_path_to_url = None
-
-    def parse(self, root_dir, cache=True):
-        msg = "Parsing"
-        logger.info('%s %s', MSG_START, msg)
-        logger.info("Directory: %s", root_dir)
-
-        pickle_file = re.sub('/|:|\\\\', '', root_dir) + '.pickle'
-        try:
-            with open(pickle_file, 'rb') as handle:
-                docs = pickle.load(handle)
-                logger.info("Loaded documents %d from cache.", len(docs))
-        except Exception:
-            files = UCLParser.get_files(root_dir, '.html')
-            docs = self.parse_files(files)
-
-            with open(pickle_file, 'wb') as handle:
-                pickle.dump(docs, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-        UCLParser.validate_links_out(docs)
-        docs = UCLParser.add_links_in(docs)
-
-        UCLParser.add_pagerank(docs)
-
-        log_prof_data()
-        logger.info('%s %s', MSG_SUCCESS, msg)
-        return docs
-
+    @staticmethod
     @profile
-    def parse_files(self, files):
-        msg = "Parsing files"
+    def parse_website(root_dir, use_cache=False):
+        msg = "Parsing website"
         logger.info('%s %s', MSG_START, msg)
+        logger.info("From directory %s", root_dir)
+
+        pickle_file = docs_cache_dir + re.sub('/|:|\\\\', '', root_dir) + '.pickle'
+        loaded_from_cache = False
 
         docs = []
-        total = len(files)
-        logger.info('Found %d files.', total)
 
-        for i, file in enumerate(files):
-            print_progress(i + 1, total, 'Scanned', 'files.')
-            doc = self.parse_file(file)
-            if doc:
-                docs.append(doc)
+        if use_cache:
+            try:
+                with open(pickle_file, 'rb') as handle:
+                    docs = pickle.load(handle)
+                    loaded_from_cache = True
+                    logger.info("Loaded %d documents from cache.", len(docs))
+            except Exception:
+                logger.info("No cached documents found")
 
-        logger.info('Successfully parsed %d documents', len(docs))
+        if not loaded_from_cache:
+            logger.info("Getting file paths...")
+            files = get_files(root_dir, '.html')
+            logger.info("Found %d html files", len(files))
+            logger.info("Parsing files...")
+            docs = [doc for doc in process_batch([(file,) for file in files], UCLParser.parse_file) if doc is not None]
+
+            logger.info("Successfully parsed %d files", len(docs))
+
+            docs = UCLParser.validate_docs_links_out(docs)
+            UCLParser.remove_duplicate_docs(docs)
+            docs = UCLParser.add_links_in(docs)
+
+            UCLParser.add_pagerank(docs)
+
+            if not os.path.isdir(docs_cache_dir):
+                os.mkdir(docs_cache_dir)
+            try:
+                with open(pickle_file, 'wb') as handle:
+                    pickle.dump(docs, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    logger.info("Successfully cached %d documents.", len(docs))
+            except Exception as e:
+                logger.info("Failed to cache documents: %s", e)
+
         logger.info('%s %s', MSG_SUCCESS, msg)
         return docs
 
+    @staticmethod
     @profile
-    def parse_file(self, file_path_abs):
+    def parse_file(file_path_abs):
         msg = "Parsing file "
-        logger.debug('%s %s', MSG_START, msg)
-        logger.debug("Parsing %s", file_path_abs)
+        logger.debug('%s %s %s', MSG_START, msg, file_path_abs)
 
         doc = None
 
@@ -79,7 +80,7 @@ class UCLParser(object):
             with open(file_path_abs, 'r', encoding='utf8') as f:
                 data = f.read()
 
-                soup = BeautifulSoup(data, self.PARSER)
+                soup = BeautifulSoup(data, UCLParser.PARSER)
                 if UCLParser.check_soup(soup):
                     url = UCLParser.extract_url(data)
 
@@ -91,7 +92,7 @@ class UCLParser(object):
                         doc.links_out = UCLParser.extract_links_out(soup)
 
                         data = UCLParser.remove_no_index(data)
-                        soup = BeautifulSoup(data, self.PARSER)
+                        soup = BeautifulSoup(data, UCLParser.PARSER)
                         soup = UCLParser.clean_soup(soup)
                         doc.content = UCLParser.extract_content(soup)
                     else:
@@ -109,19 +110,7 @@ class UCLParser(object):
         return doc
 
     @staticmethod
-    def get_files(dir, extension=None):
-        """ Returns a list of absolute paths of the files in dir and its subdirectories. """
-
-        _files = []
-        for subdir, dirs, files in os.walk(dir):
-            for file in files:
-                name, _extension = os.path.splitext(file)
-                file_path_abs = os.path.join(subdir, file)
-                if extension is None or _extension == extension:
-                    _files.append(file_path_abs)
-        return _files
-
-    @staticmethod
+    @profile
     def check_soup(soup):
         div_elements = soup.findAll('div')
         if not div_elements or not (len(div_elements) > 2):
@@ -136,6 +125,7 @@ class UCLParser(object):
         return True
 
     @staticmethod
+    @profile
     def remove_no_index(data):
         msg = "Removing non indexable elements "
         logger.debug('%s %s', MSG_START, msg)
@@ -147,6 +137,7 @@ class UCLParser(object):
         return data
 
     @staticmethod
+    @profile
     def clean_soup(soup):
         """Removes comments and style, script, br tags."""
 
@@ -165,6 +156,7 @@ class UCLParser(object):
         return soup
 
     @staticmethod
+    @profile
     def clean_text(text):
         # TODO: Improve this function if needed
         text = text.replace("&nbsp", " ")
@@ -174,6 +166,7 @@ class UCLParser(object):
         return text
 
     @staticmethod
+    @profile
     def extract_url(data):
         msg = 'Extracting url'
         logger.debug('%s %s', MSG_START, msg)
@@ -183,6 +176,8 @@ class UCLParser(object):
         #                str(data))[0]
         url = re.search("(?<=<!-- Mirrored from )(.*)(?= by HTTrack Website Copier)", str(data)).group()
         if url:
+            if not url.startswith('http'):
+                url = "http://" + url
             logger.debug("Url found: %s", url)
         else:
             url = None
@@ -192,6 +187,7 @@ class UCLParser(object):
         return url
 
     @staticmethod
+    @profile
     def extract_title(soup):
         msg = 'Extracting title '
         logger.debug('%s %s', MSG_START, msg)
@@ -207,6 +203,7 @@ class UCLParser(object):
         return title
 
     @staticmethod
+    @profile
     def extract_description(soup):
         msg = 'Extracting description '
         logger.debug('%s %s', MSG_START, msg)
@@ -221,6 +218,7 @@ class UCLParser(object):
         return desc
 
     @staticmethod
+    @profile
     def extract_keywords(soup):
         msg = 'Extracting keywords '
         logger.debug('%s %s', MSG_START, msg)
@@ -236,6 +234,7 @@ class UCLParser(object):
         return keywords
 
     @staticmethod
+    @profile
     def extract_content(soup):
         msg = 'Extracting content '
         logger.debug('%s %s', MSG_START, msg)
@@ -254,6 +253,7 @@ class UCLParser(object):
         return content
 
     @staticmethod
+    @profile
     def extract_links_out(soup):
         msg = 'Extracting links_out'
         logger.debug('%s %s', MSG_START, msg)
@@ -261,7 +261,6 @@ class UCLParser(object):
         links = []
         try:
             a_elements = soup.find('body').findAll('a', href=True)
-
             for a_elem in a_elements:
                 href = a_elem['href']
                 text_elements = a_elem.findAll(text=True)
@@ -274,47 +273,76 @@ class UCLParser(object):
         logger.debug('%s %s', MSG_SUCCESS, msg)
         return links
 
+
+    @staticmethod
+    def validate_doc_links_out1(doc, path_to_url):
+        msg = "Validating document links_out"
+        # logger.debug('%s %s', MSG_START, msg)
+
+        dir = os.path.dirname(doc.path)
+        links = []
+        for link, text in doc.links_out:
+            path = os.path.normpath(os.path.join(dir, link))
+            if path not in path_to_url:
+                path = os.path.normpath(os.path.join(path, 'index.html'))
+            try:
+                url = path_to_url[path]
+                links.append((url, text))
+            except Exception as e:
+                pass
+        doc.links_out = links
+
+        # logger.debug('%s %s', MSG_SUCCESS, msg)
+        return doc
+
+
+    @staticmethod
+    def validate_doc_links_out(doc, internal_url):
+        msg = "Validating document links_out"
+        # logger.debug('%s %s', MSG_START, msg)
+
+        doc.links_out[:] = [(link, text) for (link, text) in doc.links_out if link in internal_url]
+        # logger.debug('%s %s', MSG_SUCCESS, msg)
+        return doc
+
     @staticmethod
     @profile
-    def validate_links_out(docs):
-        msg = "Validating document links_out"
+    def validate_docs_links_out(docs):
+        msg = "Validating documents links_out"
         logger.info('%s %s', MSG_START, msg)
 
-        path_to_url = {}
-        for doc in docs:
-            path_to_url[doc.path] = doc.url
-
-        # url_to_path = {}
+        # path_to_url = {}
         # for doc in docs:
-        #     url_to_path[doc.url] = doc.path
-        # logger.info("Total unique urls: " + str(len(url_to_path.keys())))
-        #
-        urls = set()
+        #     path_to_url[doc.path] = doc.url
+        internal_urls = set([doc.url for doc in docs])
 
-        total_docs = len(docs)
-        for i, doc in enumerate(docs):
-            print_progress(i + 1, total_docs, 'Validated', 'documents.')
-            dir = os.path.dirname(doc.path)
-            links = []
-            for link, text in doc.links_out:
-                path = os.path.normpath(os.path.join(dir, link))
-                if path not in path_to_url:
-                    path = os.path.normpath(os.path.join(path, 'index.html'))
-                try:
-                    url = path_to_url[path]
-                    links.append((url, text))
-                    urls.add(url)
-                except Exception as e:
-                    # logger.info('Error: %s', e)
-                    # logger.info('Link on: %s', doc.url)
-                    # logger.info('Path not found: %s', path)
-                    # URL Not found in local_path_to_url
-                    pass
-            doc.links_out = links
+        docs = process_batch([(doc, internal_urls) for doc in docs], UCLParser.validate_doc_links_out)
 
-        logger.info('Validated unique urls: %d', len(urls))
-        # for url in (url_to_path.keys() - urls):
-        #     print('%s\n%s\n%s\n\n' % (url, url_to_path[url], path_to_url[url_to_path[url]]))
+        # logger.info('Validated unique urls: %d', len(urls))
+        logger.info('%s %s', MSG_SUCCESS, msg)
+        return docs
+
+    @staticmethod
+    def remove_duplicate_docs(docs):
+        msg = "Removing duplicate documents"
+        logger.info('%s %s', MSG_START, msg)
+        url_to_path = {}
+        paths_to_remove = set()
+        for doc in docs:
+            url = doc.url
+            if url in url_to_path:
+                found_doc = url_to_path[url]
+                if len(found_doc.links_out) <= len(doc.links_out):
+                    paths_to_remove.add(found_doc.path)
+                else:
+                    paths_to_remove.add(doc.path)
+            else:
+                url_to_path[url] = doc
+
+        docs[:] = [doc for doc in docs if doc.path not in paths_to_remove]
+
+        total_removed = len(paths_to_remove)
+        logger.info('Removed %d document%s. Unique documents left: %d' % (total_removed, '' if total_removed == 1 else 's',len(docs)))
         logger.info('%s %s', MSG_SUCCESS, msg)
 
     @staticmethod
@@ -323,16 +351,14 @@ class UCLParser(object):
         msg = 'Adding links_in'
         logger.info('%s %s', MSG_START, msg)
 
-        docs_dict = {}
-        for doc in docs:
-            doc.links_in_keywords = set()
-            docs_dict[doc.url] = doc
+        docs_dict = {doc.url: doc for doc in docs}
+        doc_links_in_keywords = {doc.url: set() for doc in docs}
 
         for url, doc in docs_dict.items():
             for link, text in doc.links_out:
                 try:
                     docs_dict[link].links_in.append((url, text))
-                    docs_dict[link].links_in_keywords.add(text)
+                    doc_links_in_keywords[url].add(text)
                 except KeyError:
                     # this shouldn't happen
                     logger.error("Link not found: %s", link)
@@ -343,7 +369,8 @@ class UCLParser(object):
         # logger.info("Found docs with incoming links from other docs: %d", len(docs))
 
         for doc in docs:
-            doc.links_in_keywords = ', '.join([keyword.replace(',', ' ') for keyword in doc.links_in_keywords])
+            if doc.url in doc_links_in_keywords:
+                doc.links_in_keywords = ', '.join([keyword.replace(',', ' ') for keyword in doc_links_in_keywords[doc.url]])
 
         logger.info('%s %s', MSG_SUCCESS, msg)
         return docs
@@ -351,7 +378,7 @@ class UCLParser(object):
     @staticmethod
     @profile
     def add_pagerank(docs, epochs=30, damping_factor=0.85):
-        msg = 'Computing document pageranks'
+        msg = 'Computing pageranks'
         logger.info('%s %s', MSG_START, msg)
         docs_dict = {doc.url: doc for doc in docs}
 
@@ -367,9 +394,9 @@ class UCLParser(object):
             epochs -= 1
 
         s = sum([doc.pagerank for doc in docs])
-        print("Total docs: %d, Pagerank sum: %.f3" % (len(docs), s))
-
+        print("Total docs: %d, Pagerank sum: %.3f" % (len(docs), s))
         logger.info('%s %s', MSG_SUCCESS, msg)
+
 
 class Document(object):
     def __init__(self, **kwargs):
@@ -394,7 +421,7 @@ class Document(object):
             "Content: {}\n" \
             "Links Out: {}\n" \
             "Links In: {}\n" \
-            "Links In Keywords: {}\n" \
+            "Keywords from Links In: {}\n" \
             "PageRank: {}\n".format(
                 self.path,
                 self.url,
@@ -407,3 +434,6 @@ class Document(object):
                 self.links_in_keywords,
                 self.pagerank
             )
+
+
+

@@ -1,3 +1,4 @@
+import os
 import sys
 from functools import wraps
 
@@ -6,6 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 import time
+from multiprocessing import Pool, Manager, cpu_count
 
 
 def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
@@ -79,11 +81,28 @@ def profile(fn):
 
 
 def log_prof_data():
-    logger.info("Profiling data:")
+    logger.debug("Profiling data:")
     for fname, data in PROF_DATA.items():
         max_time = max(data[1])
         avg_time = sum(data[1]) / len(data[1])
-        logger.debug("Function %s: %d calls, %.3f max time, %.3f avg time", fname, data[0], max_time, avg_time)
+        logger.debug("Function %s: %d calls, %.3fs max time, %.3fs avg time", fname, data[0], max_time, avg_time)
+        clear_prof_data()
+
+
+def print_prof_data():
+    print("Profiling data:")
+    d = []
+    for fname, data in PROF_DATA.items():
+        max_time = max(data[1])
+        total_time = sum(data[1])
+        avg_time = total_time / len(data[1])
+        d.append((fname, data[0], max_time, avg_time, total_time))
+
+    d = sorted(d, key=lambda x: x[4], reverse=True)
+
+    for _d in d:
+        # print("%s\n\t%d calls\n\t%.3fs max time\n\t%.3fs avg time\n\t%.3fs total time" % _d)
+        print("%s\t%.3fs total time" % (_d[0], _d[4]))
         clear_prof_data()
 
 
@@ -96,3 +115,54 @@ def clear_prof_data():
 MSG_START = "[START]"
 MSG_SUCCESS = "[SUCCESS]"
 MSG_FAILED = "[FAILED]"
+
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+
+def get_files(dir, extension=None):
+    """ Returns a list of absolute paths of the files in dir and its subdirectories. """
+
+    _files = []
+    for subdir, dirs, files in os.walk(dir):
+        for file in files:
+            name, _extension = os.path.splitext(file)
+            file_path_abs = os.path.normpath(os.path.join(subdir, file))
+            if extension is None or _extension == extension:
+                _files.append(file_path_abs)
+    return _files
+
+
+def process_batch(args_list, fn, process_no=cpu_count()):
+    total_iterable = len(args_list)
+
+    p = Pool(process_no)
+    m = Manager()
+    q = m.Queue()
+
+    args = [(fn, q, args) for args in args_list]
+
+    results = p.map_async(batch_handler, args)
+    while (True):
+        # Print progress
+        i = q.qsize()
+        print_progress(i, total_iterable, 'Progress:')
+
+        if results.ready():
+            break
+
+        time.sleep(0.3)
+
+    result = results.get()
+    p.close()
+    return result
+
+
+def batch_handler(args):
+    fn, q, fn_args = args
+    result = fn(*fn_args)
+    q.put(result)
+    return result
