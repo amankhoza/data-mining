@@ -70,7 +70,6 @@ class UCLParser(object):
         return docs
 
     @staticmethod
-    @profile
     def parse_file(file_path_abs):
         msg = "Parsing file "
         logger.debug('%s %s %s', MSG_START, msg, file_path_abs)
@@ -116,7 +115,6 @@ class UCLParser(object):
             return None
 
     @staticmethod
-    @profile
     def check_soup(soup):
         div_elements = soup.findAll('div')
         if not div_elements or not (len(div_elements) > 2):
@@ -131,7 +129,6 @@ class UCLParser(object):
         return True
 
     @staticmethod
-    @profile
     def remove_no_index(data):
         msg = "Removing non indexable elements "
         logger.debug('%s %s', MSG_START, msg)
@@ -143,7 +140,6 @@ class UCLParser(object):
         return data
 
     @staticmethod
-    @profile
     def clean_soup(soup):
         """Removes comments and style, script, br tags."""
 
@@ -162,7 +158,6 @@ class UCLParser(object):
         return soup
 
     @staticmethod
-    @profile
     def clean_text(text):
         # TODO: Improve this function if needed
         text = text.replace("&nbsp", " ")
@@ -191,7 +186,6 @@ class UCLParser(object):
         return url
 
     @staticmethod
-    @profile
     def extract_url(data):
         msg = 'Extracting url'
         logger.debug('%s %s', MSG_START, msg)
@@ -211,7 +205,6 @@ class UCLParser(object):
         return url
 
     @staticmethod
-    @profile
     def extract_title(soup):
         msg = 'Extracting title '
         logger.debug('%s %s', MSG_START, msg)
@@ -227,7 +220,6 @@ class UCLParser(object):
         return title
 
     @staticmethod
-    @profile
     def extract_description(soup):
         msg = 'Extracting description '
         logger.debug('%s %s', MSG_START, msg)
@@ -242,7 +234,6 @@ class UCLParser(object):
         return UCLParser.clean_text(desc)
 
     @staticmethod
-    @profile
     def extract_keywords(soup):
         msg = 'Extracting keywords '
         logger.debug('%s %s', MSG_START, msg)
@@ -258,7 +249,6 @@ class UCLParser(object):
         return keywords
 
     @staticmethod
-    @profile
     def extract_content(soup):
         msg = 'Extracting content '
         logger.debug('%s %s', MSG_START, msg)
@@ -277,7 +267,6 @@ class UCLParser(object):
         return content
 
     @staticmethod
-    @profile
     def extract_links_out(soup):
         msg = 'Extracting links_out'
         logger.debug('%s %s', MSG_START, msg)
@@ -305,28 +294,6 @@ class UCLParser(object):
         return links
 
     @staticmethod
-    def validate_doc_links_out1(doc, path_to_url):
-        msg = "Validating document links_out"
-        # logger.debug('%s %s', MSG_START, msg)
-
-        dir = os.path.dirname(doc.path)
-        links = []
-        for link, text in doc.links_out:
-            path = os.path.normpath(os.path.join(dir, link))
-            if path not in path_to_url:
-                path = os.path.normpath(os.path.join(path, 'index.html'))
-            try:
-                url = path_to_url[path]
-                links.append((url, text))
-            except Exception as e:
-                pass
-        doc.links_out = links
-
-        # logger.debug('%s %s', MSG_SUCCESS, msg)
-        return doc
-
-
-    @staticmethod
     def validate_doc_links_out(doc, internal_urls):
         msg = "Validating document links_out"
         # logger.debug('%s %s', MSG_START, msg)
@@ -336,7 +303,6 @@ class UCLParser(object):
         return doc
 
     @staticmethod
-    @profile
     def validate_docs_links_out(docs):
         msg = "Validating documents links_out"
         logger.info('%s %s', MSG_START, msg)
@@ -376,7 +342,6 @@ class UCLParser(object):
         logger.info('%s %s', MSG_SUCCESS, msg)
 
     @staticmethod
-    @profile
     def add_links_in(docs):
         msg = 'Adding links_in'
         logger.info('%s %s', MSG_START, msg)

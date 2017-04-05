@@ -90,7 +90,7 @@ def log_prof_data():
 
 
 def print_prof_data():
-    print("Profiling data:")
+    print("Function run times:")
     d = []
     for fname, data in PROF_DATA.items():
         max_time = max(data[1])
@@ -153,7 +153,7 @@ def process_batch(args_list, fn, process_no=cpu_count()):
 
         if results.ready():
             break
-        time.sleep(1)
+        time.sleep(0.2)
 
     result = results.get()
     p.close()
