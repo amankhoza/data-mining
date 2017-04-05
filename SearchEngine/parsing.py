@@ -7,7 +7,7 @@ import re
 from bs4 import BeautifulSoup
 from bs4 import Comment
 
-from utils import print_progress, profile, log_prof_data, MSG_START, MSG_SUCCESS, MSG_FAILED, get_files, process_batch
+from utils import print_progress, profile, MSG_START, MSG_SUCCESS, MSG_FAILED, get_files, process_batch
 
 
 logger = logging.getLogger(__name__)
@@ -15,9 +15,11 @@ docs_cache_dir = 'docs_cache/'
 
 
 class UCLParser(object):
+    PARSER = 'lxml'
+
     NO_INDEX_COMMENT = 'noindex'
     NO_INDEX_END_COMMENT = 'endnoindex'
-    PARSER = 'lxml'
+    PAGE_HAS_MOVED_TITLE = 'Page has moved'
 
     @staticmethod
     @profile
@@ -73,41 +75,45 @@ class UCLParser(object):
         msg = "Parsing file "
         logger.debug('%s %s %s', MSG_START, msg, file_path_abs)
 
-        doc = None
-
         try:
-            # TODO: try auto detecting character encoding. chardet python library might be useful
-            with open(file_path_abs, 'r', encoding='utf8') as f:
-                data = f.read()
+            try:
+                with open(file_path_abs, 'r') as f:
+                    data = f.read()
+            except UnicodeDecodeError as e:
+                try:
+                    with open(file_path_abs, 'r', encoding='utf-8') as f:
+                        data = f.read()
+                except UnicodeDecodeError as e:
+                    raise e
 
-                soup = BeautifulSoup(data, UCLParser.PARSER)
-                if UCLParser.check_soup(soup):
-                    url = UCLParser.extract_url(data)
+            soup = BeautifulSoup(data, UCLParser.PARSER)
+            # if UCLParser.check_soup(soup):
+            url = UCLParser.extract_url(data)
 
-                    if url:
-                        doc = Document(path=file_path_abs, url=url)
-                        doc.title = UCLParser.extract_title(soup)
-                        doc.description = UCLParser.extract_description(soup)
-                        doc.keywords = UCLParser.extract_keywords(soup)
-                        doc.links_out = UCLParser.extract_links_out(soup)
+            if url:
+                doc = Document(path=file_path_abs, url=url)
+                title = UCLParser.extract_title(soup)
+                if not title == UCLParser.PAGE_HAS_MOVED_TITLE:
+                    doc.title = title
+                    doc.description = UCLParser.extract_description(soup)
+                    doc.keywords = UCLParser.extract_keywords(soup)
+                    doc.links_out = UCLParser.extract_links_out(soup)
 
-                        data = UCLParser.remove_no_index(data)
-                        soup = BeautifulSoup(data, UCLParser.PARSER)
-                        soup = UCLParser.clean_soup(soup)
-                        doc.content = UCLParser.extract_content(soup)
-                    else:
-                        raise Exception("Url not found!")
+                    data = UCLParser.remove_no_index(data)
+                    soup = BeautifulSoup(data, UCLParser.PARSER)
+                    soup = UCLParser.clean_soup(soup)
+                    doc.content = UCLParser.extract_content(soup)
                 else:
-                    raise Exception("Soup check failed!")
-
+                    doc.links_out = UCLParser.extract_links_out(soup)
+                    doc.links_out = [(link, '') for link in doc.links_out]
+                logger.debug('%s %s', MSG_SUCCESS, msg)
+                return doc
+            else:
+                raise Exception("Url not found!")
         except Exception as e:
             logger.debug("Ignoring file: %s", e)
-
-        if doc:
-            logger.debug('%s %s', MSG_SUCCESS, msg)
-        else:
             logger.debug('%s %s', MSG_FAILED, msg)
-        return doc
+            return None
 
     @staticmethod
     @profile
@@ -119,7 +125,7 @@ class UCLParser(object):
 
         head_elements = soup.findAll(['link', 'script', 'meta'])
         if not head_elements or not (len(head_elements) > 3):
-            logger.debug('Soup has less than 3 link, scrip or meta elements!')
+            logger.debug('Soup has less than 3 link, script or meta elements!')
             return False
 
         return True
@@ -166,6 +172,25 @@ class UCLParser(object):
         return text
 
     @staticmethod
+    def clean_url(url):
+        # remove leading http/https
+        if url.startswith('http://'):
+            url = url.replace('http://', '', 1)
+        elif url.startswith('https://'):
+            url = url.replace('https://', '', 1)
+
+        # remove leading www
+        # if url.startswith('www.'):
+        #     url = url.replace('www.', '', 1)
+
+        # remove trailing fragments
+        url = url.split('#')[0]
+
+        # remove trailing /
+        url = url.rstrip('/')
+        return url
+
+    @staticmethod
     @profile
     def extract_url(data):
         msg = 'Extracting url'
@@ -176,8 +201,7 @@ class UCLParser(object):
         #                str(data))[0]
         url = re.search("(?<=<!-- Mirrored from )(.*)(?= by HTTrack Website Copier)", str(data)).group()
         if url:
-            if not url.startswith('http'):
-                url = "http://" + url
+            url = UCLParser.clean_url(url)
             logger.debug("Url found: %s", url)
         else:
             url = None
@@ -215,7 +239,7 @@ class UCLParser(object):
             logger.debug("Could not extract description!")
 
         logger.debug('%s %s', MSG_SUCCESS, msg)
-        return desc
+        return UCLParser.clean_text(desc)
 
     @staticmethod
     @profile
@@ -263,16 +287,22 @@ class UCLParser(object):
             a_elements = soup.find('body').findAll('a', href=True)
             for a_elem in a_elements:
                 href = a_elem['href']
+                href = UCLParser.clean_url(href)
                 text_elements = a_elem.findAll(text=True)
                 text = ' '.join([str(element) for element in text_elements])
                 links.append((href, UCLParser.clean_text(text)))
+
+            object_elements = soup.find('body').findAll('object', data=True)
+            for object_elem in object_elements:
+                link = object_elem['data']
+                link = UCLParser.clean_url(link)
+                links.append((link, ''))
 
         except Exception as e:
             logger.debug("Could not extract links: %s", e)
 
         logger.debug('%s %s', MSG_SUCCESS, msg)
         return links
-
 
     @staticmethod
     def validate_doc_links_out1(doc, path_to_url):
@@ -297,11 +327,11 @@ class UCLParser(object):
 
 
     @staticmethod
-    def validate_doc_links_out(doc, internal_url):
+    def validate_doc_links_out(doc, internal_urls):
         msg = "Validating document links_out"
         # logger.debug('%s %s', MSG_START, msg)
 
-        doc.links_out[:] = [(link, text) for (link, text) in doc.links_out if link in internal_url]
+        doc.links_out[:] = [(link, text) for (link, text) in doc.links_out if link in internal_urls and not link == doc.url]
         # logger.debug('%s %s', MSG_SUCCESS, msg)
         return doc
 
@@ -357,8 +387,9 @@ class UCLParser(object):
         for url, doc in docs_dict.items():
             for link, text in doc.links_out:
                 try:
-                    docs_dict[link].links_in.append((url, text))
-                    doc_links_in_keywords[url].add(text)
+                    if not link == url:
+                        docs_dict[link].links_in.append((url, text))
+                        doc_links_in_keywords[url].add(text)
                 except KeyError:
                     # this shouldn't happen
                     logger.error("Link not found: %s", link)

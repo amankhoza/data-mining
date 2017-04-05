@@ -153,16 +153,18 @@ def process_batch(args_list, fn, process_no=cpu_count()):
 
         if results.ready():
             break
-
-        time.sleep(0.3)
+        time.sleep(1)
 
     result = results.get()
     p.close()
+    p.join()
     return result
 
 
 def batch_handler(args):
     fn, q, fn_args = args
     result = fn(*fn_args)
-    q.put(result)
+    q.put(True)
     return result
+
+
