@@ -47,7 +47,8 @@ def print_progress(iteration, total, prefix='', suffix='', decimals=1):
         bar_length  - Optional  : character length of bar (Int)
     """
     str_format = "{0:." + str(decimals) + "f}"
-    percents = str_format.format(100 * (iteration / float(total)))
+
+    percents = str_format.format(100 * (iteration / float(total)) if not total == 0 else 100)
     progress = '%d / %d' % (iteration, total)
 
     sys.stdout.write('\r%s %s (%s%s) %s' % (prefix, progress, percents, '%', suffix)),
