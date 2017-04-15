@@ -2,10 +2,6 @@ import os
 import sys
 from functools import wraps
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 import time
 from multiprocessing import Pool, Manager, cpu_count
 
@@ -81,7 +77,7 @@ def profile(fn):
     return with_profiling
 
 
-def log_prof_data():
+def log_prof_data(logger):
     logger.debug("Profiling data:")
     for fname, data in PROF_DATA.items():
         max_time = max(data[1])

@@ -23,12 +23,17 @@ class UCLParser(object):
 
     @staticmethod
     @profile
-    def parse_website(root_dir, use_cache=False, multithreading=True):
+    def parse_website(dir, use_cache=False, multithreading=True):
         msg = "Parsing website"
         logger.info('%s %s', MSG_START, msg)
-        logger.info("From directory %s", root_dir)
+        logger.info("From directory %s", dir)
 
-        pickle_file = docs_cache_dir + re.sub('/|:|\\\\', '', root_dir) + '.pickle'
+        if not os.path.isdir(dir):
+            logger.error('ERROR: Directory %s does not exist!', dir)
+            logger.info('%s %s', MSG_FAILED, msg)
+            exit()
+
+        pickle_file = docs_cache_dir + re.sub('/|:|\\\\', '', dir) + '.pickle'
         loaded_from_cache = False
 
         docs = []
@@ -44,20 +49,20 @@ class UCLParser(object):
 
         if not loaded_from_cache:
             logger.info("Getting file paths...")
-            files = get_files(root_dir, '.html')
+            files = get_files(dir, '.html')
             logger.info("Found %d html files", len(files))
             logger.info("Parsing files...")
             if multithreading:
                 docs = [doc for doc in process_batch([(file,) for file in files], UCLParser.parse_file) if doc is not None]
             else:
-                # docs = []
-                # total_docs = len(docs)
-                # for i, file in enumerate(files):
-                #     doc = UCLParser.parse_file(file)
-                #     if doc is not None:
-                #         docs.append(doc)
-                #     print_progress(i, total_docs, 'Progress:')
-                docs = [doc for doc in process_batch([(file,) for file in files], UCLParser.parse_file, 1) if doc is not None]
+                docs = []
+                total_docs = len(files)
+                for i, file in enumerate(files):
+                    doc = UCLParser.parse_file(file)
+                    if doc is not None:
+                        docs.append(doc)
+                    print_progress(i + 1, total_docs, 'Progress:')
+                # docs = [doc for doc in process_batch([(file,) for file in files], UCLParser.parse_file, 1) if doc is not None]
             logger.info("Successfully parsed %d files", len(docs))
 
             docs = UCLParser.validate_docs_links_out(docs)
@@ -399,7 +404,7 @@ class UCLParser(object):
             epochs -= 1
 
         s = sum([doc.pagerank for doc in docs])
-        print("Total docs: %d, Pagerank sum: %.3f" % (len(docs), s))
+        logger.info("Total docs: %d, Pagerank sum: %.3f" % (len(docs), s))
         logger.info('%s %s', MSG_SUCCESS, msg)
 
 
