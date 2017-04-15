@@ -1,12 +1,9 @@
 #!/usr/bin/python
 import argparse
 import os
-import sys
 
 import logging.config
 import logging.handlers
-from itertools import accumulate
-from logging import FileHandler
 
 import datetime
 
