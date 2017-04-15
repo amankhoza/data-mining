@@ -23,7 +23,7 @@ class UCLParser(object):
 
     @staticmethod
     @profile
-    def parse_website(root_dir, use_cache=False):
+    def parse_website(root_dir, use_cache=False, multithreading=True):
         msg = "Parsing website"
         logger.info('%s %s', MSG_START, msg)
         logger.info("From directory %s", root_dir)
@@ -47,8 +47,17 @@ class UCLParser(object):
             files = get_files(root_dir, '.html')
             logger.info("Found %d html files", len(files))
             logger.info("Parsing files...")
-            docs = [doc for doc in process_batch([(file,) for file in files], UCLParser.parse_file) if doc is not None]
-
+            if multithreading:
+                docs = [doc for doc in process_batch([(file,) for file in files], UCLParser.parse_file) if doc is not None]
+            else:
+                # docs = []
+                # total_docs = len(docs)
+                # for i, file in enumerate(files):
+                #     doc = UCLParser.parse_file(file)
+                #     if doc is not None:
+                #         docs.append(doc)
+                #     print_progress(i, total_docs, 'Progress:')
+                docs = [doc for doc in process_batch([(file,) for file in files], UCLParser.parse_file, 1) if doc is not None]
             logger.info("Successfully parsed %d files", len(docs))
 
             docs = UCLParser.validate_docs_links_out(docs)
