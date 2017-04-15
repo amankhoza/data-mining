@@ -4,13 +4,24 @@ import os
 import pickle
 import re
 
-from bs4 import BeautifulSoup
-from bs4 import Comment
+logger = logging.getLogger(__name__)
+
+try:
+    from bs4 import BeautifulSoup
+    from bs4 import Comment
+except ImportError as e:
+    logger.error('Error: %s.\n%s\n%s', str(e), 'beautifulsoup4 must be installed to proceed.', 'Command to install missing library: pip install beautifulsoup4')
+    exit(1)
+
+try:
+    import lxml
+except ImportError as e:
+    logger.error('Error: %s.\n%s\n%s', str(e), 'lxml must be installed to proceed.', 'Command to install missing library: pip install lxml')
+    exit(1)
 
 from utils import print_progress, profile, MSG_START, MSG_SUCCESS, MSG_FAILED, get_files, process_batch
 
 
-logger = logging.getLogger(__name__)
 docs_cache_dir = 'docs_cache/'
 
 

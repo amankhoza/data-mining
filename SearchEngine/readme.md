@@ -2,11 +2,11 @@
 # Dependencies
 In order to run the code in this project, the following python dependencies must be installed:
 
-`pip install beautifulsoup4`
+* BeautifulSoup: `pip install beautifulsoup4`
 
-`pip install whoosh`
+* Whoosh: `pip install whoosh`
 
-`pip install lxml`
+* lxml: `pip install lxml`
 
 # Description
 
@@ -14,13 +14,15 @@ The project is split into two main components: `parsing` and `searching`.
 
 1. `parsing` 
 
-   This module is responsible for parsing or converting html files into `Document` objects. A `Document` has fields like 'url', 'title', 'content' which are required by the indexing algorithm. In adition, `parsing` also computes other useful details, like document pagernak, and attaches these details to the document itself. 
+   This module is responsible for parsing/converting html files into `Document` objects. A `Document` object has fields like 'url', 'title', 'content' which are required by the indexing algorithm. In adition, `parsing` also computes other useful details, like document pagernak, and attaches these details to the each document. 
 
 2. `searching` 
 
    This module is responsible for creating the index and searching.
 
 # How to use
+
+First of all, make sure that the required dependencies are installed.
 
 1. Indexing
 

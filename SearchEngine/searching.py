@@ -1,26 +1,31 @@
 import logging
 import os
 
-from whoosh import index
-from whoosh import scoring
-from whoosh import sorting
-from whoosh.analysis import StemmingAnalyzer
-from whoosh.fields import Schema, ID, TEXT, KEYWORD, NUMERIC
-from whoosh.qparser import QueryParser
+logger = logging.getLogger(__name__)
+
+try:
+    from whoosh import index
+    from whoosh import scoring
+    from whoosh import sorting
+    from whoosh.analysis import StemmingAnalyzer
+    from whoosh.fields import Schema, ID, TEXT, KEYWORD, NUMERIC
+    from whoosh.qparser import QueryParser
+except ImportError as e:
+    logger.error('Error: %s.\n%s\n%s', str(e), 'whoosh must be installed to proceed.', 'Command to install missing library: pip install whoosh')
+    exit(1)
 
 from parsing import Document
 from utils import profile, MSG_START, MSG_SUCCESS, MSG_FAILED, print_progress, log_prof_data
 
-logger = logging.getLogger(__name__)
 
 INDEX_BASE_DIR = "index"
 
 
-schema = Schema(url=ID(stored=True),
-                path=ID(stored=True),
+schema = Schema(url=ID(stored=True, unique=True),
+                path=ID(stored=True, unique=True),
                 title=TEXT(stored=True),
                 description=TEXT(stored=True),
-                keywords=KEYWORD,
+                keywords=KEYWORD(stored=True),
                 links_in_keywords=KEYWORD(stored=True),
                 content=TEXT(analyzer=StemmingAnalyzer()),
                 pagerank=NUMERIC(stored=True, sortable=True))
@@ -28,7 +33,7 @@ schema = Schema(url=ID(stored=True),
 
 def index_docs(docs):
     index_documents(docs)
-    log_prof_data()
+    log_prof_data(logger)
 
 
 @profile
@@ -87,7 +92,7 @@ def search(query, limit=10, ranking="BM25"):
     except Exception as e:
         print("Could not open index file: %s" % e)
         print("To be able to search, an index has to be created first. Use index_website.py to create the index.")
-        exit()
+        exit(1)
 
     qp = QueryParser("content", schema=ix.schema)
     q = qp.parse(query)
