@@ -1,7 +1,9 @@
 import sys
 import os
 
-from Tools.scripts.treesync import raw_input
+'''
+Simple text based ranking, uses Python 2
+'''
 
 
 def progress(count, total, status='Complete'):
@@ -13,7 +15,7 @@ def progress(count, total, status='Complete'):
     sys.stdout.flush()
 
 
-def rankUrls(searchTerm, directory):
+def rankUrls(searchTerm):
     htmlFilePaths = []
     rankings = []
     for root, dirs, files in os.walk(directory, topdown=False):
@@ -52,7 +54,9 @@ def displayResults(rankedUrls):
 
 os.system('reset')  # clear terminal
 
+directory = sys.argv[1]
+
 while True:
     searchTerm = raw_input('\nEnter search term:\n')
-    rankedUrls = rankUrls(searchTerm, 'data')
+    rankedUrls = rankUrls(searchTerm)
     displayResults(rankedUrls)
