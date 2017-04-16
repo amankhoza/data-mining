@@ -1,0 +1,70 @@
+import searching
+import sys
+import time
+from utils import check_python_version
+
+SEARCH_LIMIT = 1000000
+DISPLAY_LIMIT = 10
+
+
+def clamp(val, min_val, max_val):
+    return max(min(val, max_val), min_val)
+
+
+def print_search_results_page(page_no, search_results):
+    end = page_no * DISPLAY_LIMIT
+    start = end - DISPLAY_LIMIT
+
+    for rank, doc in enumerate(search_results):
+        if rank in range(start, end):
+            print("%d. %s" % (rank + 1, doc.url))
+
+
+check_python_version()
+
+args = len(sys.argv)
+
+if (args < 2):
+    print('Must enter ranking algorithm (bm25, tf_idf, pagerank) as command line argument')
+    exit()
+else:
+    ranking = sys.argv[1]
+    if ranking not in ['bm25', 'tf_idf', 'pagerank']:
+        print('{} is not a valid ranking algorithm (bm25, tf_idf, pagerank)'.format(ranking))
+        exit()
+
+already_explained = False
+
+while True:
+    query = input('\nEnter search query:\n')
+    start_time = time.time()
+    search_results = searching.search(query, limit=SEARCH_LIMIT, ranking=ranking)
+    end_time = time.time()
+    time_taken = end_time - start_time
+    no_of_results = len(search_results)
+
+    if not no_of_results:
+        print('\nYour search did not match any documents ({:.3f} seconds)'.format(time_taken))
+    else:
+        print('\nFound {} results ({:.3f} seconds)\n'.format(no_of_results, time_taken))
+        total_pages = int(no_of_results / DISPLAY_LIMIT) + 1
+        page = 1
+        print_search_results_page(page, search_results)
+
+        while True:
+            if already_explained:
+                key = input()
+            else:
+                key = input('\nEnter n or p for next or previous page, any other key to search again\n')
+                already_explained = True
+
+            if key == 'n':
+                page += 1
+                page = clamp(page, 1, total_pages)
+                print_search_results_page(page, search_results)
+            elif key == 'p':
+                page -= 1
+                page = clamp(page, 1, total_pages)
+                print_search_results_page(page, search_results)
+            else:
+                break
