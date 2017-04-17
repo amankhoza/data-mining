@@ -1,3 +1,4 @@
+# coding: utf-8
 import os
 import sys
 from functools import wraps
@@ -165,3 +166,9 @@ def batch_handler(args):
     return result
 
 
+def check_python_version():
+    python_version = sys.version_info
+
+    if python_version[0] < 3:
+        print('Must be use python 3, you are currently using {}.{}'.format(python_version[0], python_version[1]))
+        exit()

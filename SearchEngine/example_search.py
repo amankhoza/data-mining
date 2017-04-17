@@ -1,4 +1,7 @@
 import searching
+from utils import check_python_version
+
+check_python_version()
 
 query = "average salary after course"
 search_results = searching.search(query, limit=50, ranking='bm25')

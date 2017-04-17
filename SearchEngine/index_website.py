@@ -10,6 +10,8 @@ import datetime
 import parsing
 import searching
 
+from utils import check_python_version
+
 
 def config_logging(debug=False):
     # Create directory to store logs in
@@ -51,6 +53,9 @@ def main():
 
     docs = parsing.UCLParser.parse_website(args.website_dir, multithreading=not args.debug)
     searching.index_docs(docs)
+
+
+check_python_version()
 
 if __name__ == "__main__":
     main()
