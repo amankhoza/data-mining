@@ -30,7 +30,7 @@ First of all, make sure that the required dependencies are installed.
 
    E.g. `python index_website.py "/path/to/website/directory/"`
 
-2. Searching
+2. Programmatic Search
 
    To search the indexed website, use the `searching.search()` function. This function takes in 3 arguments:
 
@@ -39,3 +39,9 @@ First of all, make sure that the required dependencies are installed.
      * `ranking`: the ranking algorithms to use for ranking the results; three ranking algorithms are currently supported: `bm25`, `tf_idf` and `pagerank`.
 
    A searching example can be seen in [example_search.py](example_search.py).
+
+3. User Search
+
+   To search like a regular search engine run the run_search_engine script and pass in the ranking algorithm you wish to use as a command line argument:
+
+   E.g. `python run_search_engine.py bm25`
