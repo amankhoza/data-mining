@@ -44,7 +44,9 @@ def extractLinksFromHTML(soup):
 
 os.system('reset')  # clear terminal
 
-filePaths = getHTMLFilePaths('data')
+directory = sys.argv[1]
+
+filePaths = getHTMLFilePaths(directory)
 
 i = 1
 n = len(filePaths)
