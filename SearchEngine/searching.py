@@ -1,5 +1,7 @@
 import logging
 import os
+from parsing import Document
+from utils import profile, MSG_START, MSG_SUCCESS, MSG_FAILED, print_progress, log_prof_data
 
 logger = logging.getLogger(__name__)
 
@@ -10,25 +12,33 @@ try:
     from whoosh.analysis import StemmingAnalyzer
     from whoosh.fields import Schema, ID, TEXT, KEYWORD, NUMERIC
     from whoosh.qparser import QueryParser
+    from whoosh.qparser import MultifieldParser
 except ImportError as e:
     logger.error('Error: %s.\n%s\n%s', str(e), 'whoosh must be installed to proceed.', 'Command to install missing library: pip install whoosh')
     exit(1)
 
-from parsing import Document
-from utils import profile, MSG_START, MSG_SUCCESS, MSG_FAILED, print_progress, log_prof_data
+INDEX_BASE_DIR = "index/"
 
 
-INDEX_BASE_DIR = "index"
-
-
-schema = Schema(url=ID(stored=True, unique=True),
+stemming_analyzer = StemmingAnalyzer()
+schema1 = Schema(url=ID(stored=True, unique=True),
                 path=ID(stored=True, unique=True),
-                title=TEXT(stored=True),
-                description=TEXT(stored=True),
-                keywords=KEYWORD(stored=True),
-                links_in_keywords=KEYWORD(stored=True),
-                content=TEXT(analyzer=StemmingAnalyzer()),
+                title=TEXT(stored=True, analyzer=stemming_analyzer),
+                description=TEXT(stored=True, analyzer=stemming_analyzer),
+                keywords=KEYWORD(stored=True, analyzer=stemming_analyzer),
+                links_in_keywords=KEYWORD(stored=True, analyzer=stemming_analyzer),
+                content=TEXT(analyzer=stemming_analyzer),
                 pagerank=NUMERIC(stored=True, sortable=True))
+
+schema2 = Schema(url=ID(stored=True, unique=True),
+                 path=ID(stored=True, unique=True),
+                 # just add field boosts to the desired fields
+                 title=TEXT(stored=True, analyzer=stemming_analyzer, field_boost=100.0),
+                 description=TEXT(stored=True, analyzer=stemming_analyzer),
+                 keywords=KEYWORD(stored=True, analyzer=stemming_analyzer),
+                 links_in_keywords=KEYWORD(stored=True, analyzer=stemming_analyzer),
+                 content=TEXT(analyzer=stemming_analyzer),
+                 pagerank=NUMERIC(stored=True, sortable=True))
 
 
 def index_docs(docs):
@@ -40,7 +50,7 @@ def index_docs(docs):
 def index_documents(docs):
     msg = "Indexing documents"
     logger.info('%s %s', MSG_START, msg)
-
+    logger.info('%s %s', MSG_START, msg)
     try:
         if not os.path.isdir(INDEX_BASE_DIR):
             logger.info('Index directory does not exist. Trying to create directory.')
@@ -50,7 +60,7 @@ def index_documents(docs):
             except Exception as e:
                 raise Exception('Failed to create directory for index: ' + e)
 
-        ix = index.create_in(INDEX_BASE_DIR, schema=schema)
+        ix = index.create_in(INDEX_BASE_DIR, schema=schema1)
         writer = ix.writer()
         total_docs = len(docs)
         for i, doc in enumerate(docs):
@@ -73,43 +83,70 @@ def index_documents(docs):
         logger.warning('%s %s', MSG_FAILED, msg)
 
 
-def search(query, limit=10, ranking="BM25"):
-    """Returns a list of sorted Document based on query"""
-    logger.info("Received search request: Query: %s\tLimit: %d\tRanking: %s", query, limit, ranking)
+class SearchEngine(object):
+    FREQUENCY = 'frequency'
+    BM25 = 'bm25'
+    TF_IDF = 'tf_idf'
+    DFREE = 'dfree'
+    PL2 = 'pl2'
+    PAGERANK = 'pagerank'
+    CUSTOM = 'custom'
 
-    if ranking == "bm25":
-        scoring_method = scoring.BM25F()
-    elif ranking == "tf_idf":
-        scoring_method = scoring.TF_IDF()
+    def __init__(self):
+        try:
+            self.ix = index.open_dir(INDEX_BASE_DIR)
+        except Exception as e:
+            logger.error("Could not open index file: %s" % e)
+            logger.info("To be able to search, an index has to be created first. Use index_website.py to create the index.")
+            raise e
 
-    elif ranking == "pagerank":
-        scoring_method = scoring.BM25F
-    else:
-        raise ValueError("ranking must be one of these: 'bm25', 'tf_idf', 'pagerank")
+        self.scorers_dict = {
+            SearchEngine.FREQUENCY: scoring.Frequency(),
+            SearchEngine.BM25: scoring.BM25F(),
+            SearchEngine.TF_IDF: scoring.TF_IDF,
+            SearchEngine.DFREE: scoring.DFree,
+            SearchEngine.PL2: scoring.PL2,
+            SearchEngine.PAGERANK: scoring.Frequency,
+            # Change the scoring with the custom scoring, once implemented
+            SearchEngine.CUSTOM: scoring.Frequency}
 
-    try:
-        ix = index.open_dir(INDEX_BASE_DIR)
-    except Exception as e:
-        print("Could not open index file: %s" % e)
-        print("To be able to search, an index has to be created first. Use index_website.py to create the index.")
-        exit(1)
+        self.rankings = self.scorers_dict.keys()
+        self.qp = MultifieldParser(
+            ["title", "description", "keywords", "content"],
+            schema=schema1)
+        self.qp_custom = MultifieldParser(
+            ["title", "description", "keywords", "content"],
+            schema=schema2)
 
-    qp = QueryParser("content", schema=ix.schema)
-    q = qp.parse(query)
+    def search(self, query, limit=10, ranking=BM25):
+        """Returns a list of sorted Document based on query"""
+        logger.info("Received search request: Query: %s | Limit: %d | Ranking: %s", query, limit, ranking)
 
-    docs = []
+        try:
+            scoring_method = self.scorers_dict[ranking]
+        except KeyError:
+            logger.error("Invalid ranking: %s", ranking)
+            raise ValueError("Ranking must be one of these: %s", ', '.join(self.rankings))
 
-    with ix.searcher(weighting=scoring_method) as s:
-        # results = s.search(q, limit=limit)
-        if ranking == 'pagerank':
-            pagerank_facet = sorting.StoredFieldFacet('pagerank')
-            results = s.search(q, limit=limit, sortedby=pagerank_facet, reverse=True)
-        else:
-            results = s.search(q, limit=limit)
+        docs = []
 
-        logger.info("\tMatched docs: %d", len(results))
-        logger.info("\tScored docs: %d", results.scored_length())
+        with self.ix.searcher(weighting=scoring_method) as s:
+            # results = s.search(q, limit=limit)
+            if ranking == SearchEngine.CUSTOM:
+                q = self.qp_custom.parse(query)
+                results = s.search(q, limit=limit)
+            elif ranking == SearchEngine.PAGERANK:
+                # Sort results by pagerank
+                q = self.qp.parse(query)
+                pagerank_facet = sorting.StoredFieldFacet('pagerank')
+                results = s.search(q, limit=limit, sortedby=pagerank_facet, reverse=True)
+            else:
+                q = self.qp.parse(query)
+                results = s.search(q, limit=limit)
 
-        for result in results:
-            docs.append(Document(**result.fields()))
-    return docs
+            logger.info("\tMatched docs: %d", len(results))
+            logger.info("\tScored docs: %d", results.scored_length())
+
+            for result in results:
+                docs.append(Document(**result.fields()))
+        return docs

@@ -1,10 +1,10 @@
-import searching
+from searching import SearchEngine
 from utils import check_python_version
 
 SEARCH_LIMIT = 10
 DISPLAY_LIMIT = 10
 
-algorithms = ['bm25', 'tf_idf', 'pagerank']
+algorithms = [SearchEngine.BM25, SearchEngine.TF_IDF, SearchEngine.PAGERANK]
 queries = ['exam timetable', 'MEng Computer Science programme', 'syllabus', 'UCL societies', 'MEng entry requirements',
            'BSc entry requirements', 'UCL computer science (should direct to home page)', 'BSc Computer Science programme',
            'password change', 'unix', 'David Barber', 'Graham Roberts', 'how to change the cs account password', 'UCL servers',
@@ -19,13 +19,15 @@ check_python_version()
 
 store = {}
 
+se = SearchEngine()
+
 for query in queries:
 
     store[query] = {}
 
     for algo in algorithms:
 
-        search_results = searching.search(query, limit=SEARCH_LIMIT, ranking=algo)
+        search_results = se.search(query, limit=SEARCH_LIMIT, ranking=algo)
 
         for rank, doc in enumerate(search_results):
 
@@ -44,7 +46,7 @@ headers = 'query,url,title,description,relevance'
 for algo in algorithms:
     headers = headers+',index_'+algo
 
-out = open('table.csv', 'w')
+out = open('table.csv', 'w', encoding='utf8')
 out.write(headers+'\n')
 
 # example headers

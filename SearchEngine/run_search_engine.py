@@ -1,10 +1,13 @@
+import argparse
+
 import searching
-import sys
 import time
 from utils import check_python_version
 
 SEARCH_LIMIT = 1000000
 DISPLAY_LIMIT = 10
+
+se = searching.SearchEngine()
 
 
 def clamp(val, min_val, max_val):
@@ -20,25 +23,28 @@ def print_search_results_page(page_no, search_results):
             print("%d. %s" % (rank + 1, doc.url))
 
 
+def is_valid_ranking(parser, ranking):
+    if ranking not in se.rankings:
+        parser.error(("Invalid ranking algorithm: %s. Avaialble ranking algorithms: %s" % (ranking, se.rankings)))
+    else:
+        return str(ranking)
+
+
 check_python_version()
 
-args = len(sys.argv)
 
-if (args < 2):
-    print('Must enter ranking algorithm (bm25, tf_idf, pagerank) as command line argument')
-    exit()
-else:
-    ranking = sys.argv[1]
-    if ranking not in ['bm25', 'tf_idf', 'pagerank']:
-        print('{} is not a valid ranking algorithm (bm25, tf_idf, pagerank)'.format(ranking))
-        exit()
+parser = argparse.ArgumentParser(description='Search and print results.')
+parser.add_argument('ranking', metavar='RANKING', action='store', type=lambda ranking: is_valid_ranking(parser, ranking),
+                    help='ranking algorithm')
+
+args = parser.parse_args()
 
 already_explained = False
 
 while True:
     query = input('\nEnter search query:\n')
     start_time = time.time()
-    search_results = searching.search(query, limit=SEARCH_LIMIT, ranking=ranking)
+    search_results = se.search(query, limit=SEARCH_LIMIT, ranking=args.ranking)
     end_time = time.time()
     time_taken = end_time - start_time
     no_of_results = len(search_results)
@@ -68,3 +74,4 @@ while True:
                 print_search_results_page(page, search_results)
             else:
                 break
+
