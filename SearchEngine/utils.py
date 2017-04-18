@@ -7,29 +7,9 @@ import time
 from multiprocessing import Pool, Manager, cpu_count
 
 
-def print_progress_bar(iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
-    """
-    Call in a loop to create terminal progress bar
-    @params:
-        iteration   - Required  : current iteration (Int)
-        total       - Required  : total iterations (Int)
-        prefix      - Optional  : prefix string (Str)
-        suffix      - Optional  : suffix string (Str)
-        decimals    - Optional  : positive number of decimals in percent complete (Int)
-        bar_length  - Optional  : character length of bar (Int)
-    """
-    # This function was copied from https://gist.github.com/aubricus/f91fb55dc6ba5557fbab06119420dd6a
-
-    str_format = "{0:." + str(decimals) + "f}"
-    percents = str_format.format(100 * (iteration / float(total)))
-    filled_length = int(round(bar_length * iteration / float(total)))
-    bar = '█' * filled_length + '-' * (bar_length - filled_length)
-
-    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percents, '%', suffix)),
-
-    if iteration == total:
-        sys.stdout.write('\n')
-    sys.stdout.flush()
+MSG_START = "[START]"
+MSG_SUCCESS = "[SUCCESS]"
+MSG_FAILED = "[FAILED]"
 
 
 def print_progress(iteration, total, prefix='', suffix='', decimals=1):
@@ -110,22 +90,11 @@ def clear_prof_data():
     PROF_DATA = {}
 
 
-MSG_START = "[START]"
-MSG_SUCCESS = "[SUCCESS]"
-MSG_FAILED = "[FAILED]"
-
-
-def chunks(lst, n):
-    """Yield successive n-sized chunks from l."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
-
-
-def get_files(dir, extension=None):
+def get_files(directory, extension=None):
     """ Returns a list of absolute paths of the files in dir and its subdirectories. """
 
     _files = []
-    for subdir, dirs, files in os.walk(dir):
+    for subdir, dirs, files in os.walk(directory):
         for file in files:
             name, _extension = os.path.splitext(file)
             file_path_abs = os.path.normpath(os.path.join(subdir, file))
@@ -170,5 +139,5 @@ def check_python_version():
     python_version = sys.version_info
 
     if python_version[0] < 3:
-        print('Must be use python 3, you are currently using {}.{}'.format(python_version[0], python_version[1]))
+        print('Must use python 3, you are currently using {}.{}'.format(python_version[0], python_version[1]))
         exit()
