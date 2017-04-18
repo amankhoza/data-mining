@@ -7,6 +7,7 @@ from utils import check_python_version
 SEARCH_LIMIT = 1000000
 DISPLAY_LIMIT = 10
 
+check_python_version()
 
 def clamp(val, min_val, max_val):
     return max(min(val, max_val), min_val)
@@ -28,7 +29,7 @@ def is_valid_ranking(parser, ranking):
         return str(ranking)
 
 
-check_python_version()
+
 
 se = searching.SearchEngine()
 
