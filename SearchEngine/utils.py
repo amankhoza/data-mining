@@ -1,4 +1,5 @@
 # coding: utf-8
+import csv
 import os
 import sys
 from functools import wraps
@@ -10,6 +11,14 @@ from multiprocessing import Pool, Manager, cpu_count
 MSG_START = "[START]"
 MSG_SUCCESS = "[SUCCESS]"
 MSG_FAILED = "[FAILED]"
+
+
+def check_python_version():
+    python_version = sys.version_info
+
+    if python_version[0] < 3:
+        print('Must use python 3, you are currently using {}.{}'.format(python_version[0], python_version[1]))
+        exit()
 
 
 def print_progress(iteration, total, prefix='', suffix='', decimals=1):
@@ -135,9 +144,31 @@ def batch_handler(args):
     return result
 
 
-def check_python_version():
-    python_version = sys.version_info
+def write_csv(rows, filename, headers=None):
 
-    if python_version[0] < 3:
-        print('Must use python 3, you are currently using {}.{}'.format(python_version[0], python_version[1]))
-        exit()
+    # sort query results by query
+    print('Writing rows to %s' % filename)
+    with open(filename, 'w', encoding='utf8', newline='') as csv_file:
+
+        writer = csv.writer(csv_file, delimiter=',', quotechar='|')
+        if headers:
+            writer.writerow(headers)
+        for row in rows:
+            writer.writerow(row)
+    print('Success!')
+
+
+def read_csv(filename, skip_headers=True):
+    # sort query results by query
+    rows = []
+
+    print('Reading csv file %s: ' % filename)
+
+    with open(filename, 'r', encoding='utf8', newline='') as csv_file:
+        reader = csv.reader(csv_file, delimiter=',', quotechar='|')
+        if skip_headers:
+            next(reader, None)
+        for row in reader:
+            rows.append(tuple(row))
+    print('Success!')
+    return rows

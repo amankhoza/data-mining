@@ -9,6 +9,8 @@ DISPLAY_LIMIT = 10
 
 check_python_version()
 
+se = searching.SearchEngine()
+
 def clamp(val, min_val, max_val):
     return max(min(val, max_val), min_val)
 
@@ -28,10 +30,6 @@ def is_valid_ranking(parser, ranking):
     else:
         return str(ranking)
 
-
-
-
-se = searching.SearchEngine()
 
 parser = argparse.ArgumentParser(description='Search and print results.')
 parser.add_argument('ranking', metavar='RANKING', action='store', type=lambda ranking: is_valid_ranking(parser, ranking),
