@@ -40,7 +40,13 @@ def get_search_results_with_relevances():
     user_relevances = {}
     # Read user relevances from csv
     if os.path.isfile(relevances_file):
-        user_relevances = {(row[0], row[1]): row[2] for row in read_csv(filename=relevances_file, skip_headers=True)}
+
+        for row in read_csv(filename=relevances_file, skip_headers=True):
+            try:
+                relevance = int(row[0])
+            except ValueError:
+                relevance = -1
+            user_relevances[(row[0], row[1])] = relevance
 
     print("Generating search results...")
     # document list with relevances (search results) for each (query, algorithm) pair
