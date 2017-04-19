@@ -50,6 +50,7 @@ class UCLParser(object):
         docs = []
 
         if use_cache:
+            # Read docs from cache
             try:
                 with open(pickle_file, 'rb') as handle:
                     docs = pickle.load(handle)
@@ -77,13 +78,14 @@ class UCLParser(object):
             logger.info("Successfully parsed %d files", len(docs))
 
             docs = UCLParser.validate_docs_links_out(docs)
-            UCLParser.remove_duplicate_docs(docs)
+            # UCLParser.remove_duplicate_docs(docs)
             docs = UCLParser.add_links_in(docs)
 
             UCLParser.add_pagerank(docs)
 
             if not os.path.isdir(docs_cache_dir):
                 os.mkdir(docs_cache_dir)
+            # Cache documents
             try:
                 with open(pickle_file, 'wb') as handle:
                     pickle.dump(docs, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -389,6 +391,13 @@ class UCLParser(object):
         # docs = [doc for doc in docs if len(doc.links_in) > 0]
         # logger.info("Found docs with incoming links from other docs: %d", len(docs))
 
+        # Fix documents that don't have any links_out
+        for url, doc in docs_dict.items():
+            if len(doc.links_out) == 0:
+                doc.links_out = doc.links_in
+                for link, _ in doc.links_out:
+                    docs_dict[link].links_in.append((url,''))
+
         for doc in docs:
             if doc.url in doc_links_in_keywords:
                 doc.links_in_keywords = ', '.join([keyword.replace(',', ' ') for keyword in doc_links_in_keywords[doc.url]])
@@ -403,16 +412,15 @@ class UCLParser(object):
         logger.info('%s %s', MSG_START, msg)
         docs_dict = {doc.url: doc for doc in docs}
 
-        total_epochs = epochs
-        while epochs > 0:
-            print_progress(total_epochs - epochs + 1, total_epochs, 'Epoch')
+        for epoch in range(1, epochs + 1):
+            print_progress(epoch, epochs, 'Epoch')
             for url, doc in docs_dict.items():
-                interm = 0
+                interm = 0.0
                 for link_url, link_text in doc.links_in:
                     doc_in = docs_dict[link_url]
                     interm += doc_in.pagerank / len(doc_in.links_out)
                 doc.pagerank = (1-damping_factor) + damping_factor*interm
-            epochs -= 1
+
 
         s = sum([doc.pagerank for doc in docs])
         logger.info("Total docs: %d, Pagerank sum: %.3f" % (len(docs), s))
@@ -427,10 +435,10 @@ class Document(object):
         self.description = kwargs.get('description', '')
         self.keywords = kwargs.get('keywords', '')
         self.content = kwargs.get('content', '')
-        self.links_out = kwargs.get('links_in', [])
-        self.links_in = kwargs.get('links_out', [])
+        self.links_out = kwargs.get('links_out', [])
+        self.links_in = kwargs.get('links_in', [])
         self.links_in_keywords = kwargs.get('links_in_keywords', '')
-        self.pagerank = kwargs.get('pagerank', 1)
+        self.pagerank = kwargs.get('pagerank', 1.0)
 
     def __str__(self):
         return \
