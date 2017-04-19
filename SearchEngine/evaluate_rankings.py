@@ -1,7 +1,8 @@
+from __future__ import division
 import os
-
 from searching import SearchEngine
 from utils import check_python_version, process_batch, read_csv, write_csv
+from math import log
 
 check_python_version()
 
@@ -87,6 +88,45 @@ def update_relevancies(results, user_relevancies=None):
     write_csv(sorted(final_relevancies, key=lambda x: (x[0].lower(), x[1])), filename=relevancies_file, headers=headers)
 
 
+def sort_by_index(index_relevance):
+    return sorted(index_relevance, key=lambda x: x[0])
+
+
+def rel_log(index, relevance):
+    return relevance / log(index + 1, 2.0)
+
+
+def cumulative_gain(relevances):
+    return sum(relevances)
+
+
+def discounted_cumulative_gain(indexes, relevances):
+    n = len(indexes)
+    dcg = 0
+    for i in range(0, n):
+        dcg += rel_log(indexes[i], relevances[i])
+    return dcg
+
+
+def sort_relevances(relevances):
+    return sorted(relevances, reverse=True)
+
+
+def ideal_discounted_cumulative_gain(indexes, relevances):
+    sorted_relevances = sort_relevances(relevances)
+    idcg = discounted_cumulative_gain(indexes, sorted_relevances)
+    return idcg
+
+
+def normalised_discounted_cumulative_gain(indexes, relevances):
+    dcg = discounted_cumulative_gain(indexes, relevances)
+    idcg = ideal_discounted_cumulative_gain(indexes, relevances)
+    if dcg>0 and idcg>0:
+        return dcg / idcg
+    else:
+        return 0
+
+
 # This check is required for multithreaded implementation
 if __name__ == "__main__":
     # Read user relevancies from file
@@ -94,6 +134,19 @@ if __name__ == "__main__":
 
     # Get search results and add the relevancies to each document
     results_with_relevancies = get_search_results_with_relevancies(user_relevancies)
+
+    evaluation_results = {}
+
+    for (query, algo) in results_with_relevancies:
+        indexes = range(1, len(results_with_relevancies[(query, algo)])+1)
+        relevances = [r for doc, r in results_with_relevancies[(query, algo)]]
+        ndcg = normalised_discounted_cumulative_gain(indexes, relevances)
+        if query not in evaluation_results:
+            evaluation_results[query] = {}
+        evaluation_results[query][algo] = ndcg
+
+    for q in sorted(evaluation_results, key=lambda x: x[0]):
+        print(q, evaluation_results[q])
 
     # Update the user relevancies file with the new results
     update_relevancies(results_with_relevancies, user_relevancies)
