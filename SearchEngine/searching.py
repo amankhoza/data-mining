@@ -2,7 +2,7 @@ import logging
 import os
 from parsing import Document
 from utils import profile, MSG_START, MSG_SUCCESS, MSG_FAILED, print_progress, log_prof_data
-
+from multiprocessing import cpu_count
 logger = logging.getLogger(__name__)
 
 try:
@@ -20,8 +20,8 @@ except ImportError as e:
 INDEX_BASE_DIR = "index/"
 
 
-stemming_analyzer = StemmingAnalyzer()
-schema1 = Schema(url=ID(stored=True, unique=True),
+stemming_analyzer = StemmingAnalyzer(cachesize=-1)
+schema = Schema(url=ID(stored=True, unique=True),
                 path=ID(stored=True, unique=True),
                 title=TEXT(stored=True, analyzer=stemming_analyzer),
                 description=TEXT(stored=True, analyzer=stemming_analyzer),
@@ -29,16 +29,6 @@ schema1 = Schema(url=ID(stored=True, unique=True),
                 links_in_keywords=KEYWORD(stored=True, analyzer=stemming_analyzer),
                 content=TEXT(analyzer=stemming_analyzer),
                 pagerank=NUMERIC(stored=True, sortable=True))
-
-schema2 = Schema(url=ID(stored=True, unique=True),
-                 path=ID(stored=True, unique=True),
-                 # just add field boosts to the desired fields
-                 title=TEXT(stored=True, analyzer=stemming_analyzer, field_boost=100.0),
-                 description=TEXT(stored=True, analyzer=stemming_analyzer),
-                 keywords=KEYWORD(stored=True, analyzer=stemming_analyzer),
-                 links_in_keywords=KEYWORD(stored=True, analyzer=stemming_analyzer),
-                 content=TEXT(analyzer=stemming_analyzer),
-                 pagerank=NUMERIC(stored=True, sortable=True))
 
 
 def index_docs(docs):
@@ -50,18 +40,18 @@ def index_docs(docs):
 def index_documents(docs):
     msg = "Indexing documents"
     logger.info('%s %s', MSG_START, msg)
-    logger.info('%s %s', MSG_START, msg)
     try:
+
         if not os.path.isdir(INDEX_BASE_DIR):
             logger.info('Index directory does not exist. Trying to create directory.')
             try:
                 os.mkdir(INDEX_BASE_DIR)
                 logger.info('Directory created successfully.')
             except Exception as e:
-                raise Exception('Failed to create directory for index: ' + e)
+                raise Exception('Failed to create directory for index: ' + str(e))
 
-        ix = index.create_in(INDEX_BASE_DIR, schema=schema1)
-        writer = ix.writer()
+        ix = index.create_in(INDEX_BASE_DIR, schema=schema)
+        writer = ix.writer(limitmb=256, procs=cpu_count(), multisegment=True)
         total_docs = len(docs)
         for i, doc in enumerate(docs):
             print_progress(i + 1, total_docs, 'Indexed', 'documents.')
@@ -75,7 +65,7 @@ def index_documents(docs):
                                 pagerank=doc.pagerank)
 
         logger.info('%s Writing index to file', MSG_START)
-        writer.commit()
+        writer.commit(optimize=True)
         logger.info('%s Writing index to file', MSG_SUCCESS)
         logger.info('%s %s', MSG_SUCCESS, msg)
     except Exception as e:
@@ -113,10 +103,12 @@ class SearchEngine(object):
         self.rankings = self.scorers_dict.keys()
         self.qp = MultifieldParser(
             ["title", "description", "keywords", "content"],
-            schema=schema1)
+            schema=schema)
         self.qp_custom = MultifieldParser(
-            ["title", "description", "keywords", "content"],
-            schema=schema2)
+            ["title", "description", "keywords", "links_in_keywords", "content"],
+            schema=schema,
+            fieldboosts={"title": 10.0, "description": 1.0, "keywords": 1.0, "links_in_keywords": 1.0, "content": 1.0}
+        )
 
     def search(self, query, limit=10, ranking=BM25):
         """Returns a list of sorted Document based on query"""
