@@ -58,13 +58,13 @@ def get_search_results_with_relevancies(user_relevancies=None):
     results = {
         (query, algo): results
         for query, algo, results in process_batch(
-            [
-                (query, SEARCH_LIMIT, algo, user_relevancies)
-                for query in queries for algo in algorithms
+        [
+            (query, SEARCH_LIMIT, algo, user_relevancies)
+            for query in queries for algo in algorithms
             ],
-            search_wrapper
-        )
-    }
+        search_wrapper
+    )
+        }
     return results
 
 
@@ -75,6 +75,8 @@ def update_relevancies(results, user_relevancies=None):
 
     # list of unique (query, url) pairs
     relevancies = {(query, doc.url): relevance for (query, algo), docs_with_relevance in results.items() for doc, relevance in docs_with_relevance}
+
+    user_relevancies = {(query, url):relevance for (query, url),relevance in user_relevancies.items() if relevance > -1}
 
     for query_url_pair, relevance in relevancies.items():
         if query_url_pair not in user_relevancies:
