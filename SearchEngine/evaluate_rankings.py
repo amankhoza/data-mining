@@ -136,6 +136,7 @@ if __name__ == "__main__":
     results_with_relevancies = get_search_results_with_relevancies(user_relevancies)
 
     evaluation_results = {}
+    ndcgs_per_algo = {}
 
     for (query, algo) in results_with_relevancies:
         indexes = range(1, len(results_with_relevancies[(query, algo)])+1)
@@ -144,9 +145,18 @@ if __name__ == "__main__":
         if query not in evaluation_results:
             evaluation_results[query] = {}
         evaluation_results[query][algo] = ndcg
+        if algo not in ndcgs_per_algo:
+            ndcgs_per_algo[algo] = []
+        if ndcg>0:
+            ndcgs_per_algo[algo].append(ndcg)
 
     for q in sorted(evaluation_results, key=lambda x: x[0]):
         print(q, evaluation_results[q])
+
+    for algo in ndcgs_per_algo:
+        ndcgs = ndcgs_per_algo[algo]
+        avg_ndcg = sum(ndcgs)/len(ndcgs)
+        print('Avg nDCG for '+algo+' : '+str(avg_ndcg))
 
     # Update the user relevancies file with the new results
     update_relevancies(results_with_relevancies, user_relevancies)
