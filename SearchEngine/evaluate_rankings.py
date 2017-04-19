@@ -119,12 +119,14 @@ def ideal_discounted_cumulative_gain(indexes, relevances):
 
 
 def normalised_discounted_cumulative_gain(indexes, relevances):
+    cg = cumulative_gain(relevances)
+    if cg == 0:
+        return 0  # completely irrelevant results
+    elif cg < 0:
+        return -1  # results which havent been evaluated yet
     dcg = discounted_cumulative_gain(indexes, relevances)
     idcg = ideal_discounted_cumulative_gain(indexes, relevances)
-    if dcg>0 and idcg>0:
-        return dcg / idcg
-    else:
-        return 0
+    return dcg / idcg
 
 
 # This check is required for multithreaded implementation
@@ -147,7 +149,7 @@ if __name__ == "__main__":
         evaluation_results[query][algo] = ndcg
         if algo not in ndcgs_per_algo:
             ndcgs_per_algo[algo] = []
-        if ndcg>0:
+        if ndcg >= 0:
             ndcgs_per_algo[algo].append(ndcg)
 
     for q in sorted(evaluation_results, key=lambda x: x[0]):
