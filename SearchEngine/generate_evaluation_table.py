@@ -55,16 +55,10 @@ out.write(headers+'\n')
 # print(store)
 
 for query in store:
-    first_query_flag = True
     for url in store[query]:
         title = store[query][url]['title']
         desc = store[query][url]['desc']
-        if first_query_flag:
-            query_string = query
-            first_query_flag = False
-        else:
-            query_string = ''
-        out.write('"{}","{}","{}","{}",'.format(query_string, url, title, desc))
+        out.write('"{}","{}","{}","{}",'.format(query, url, title, desc))
         for algo in algorithms:
             algo_index = store[query][url][algo]
             out.write(',{}'.format(algo_index))
