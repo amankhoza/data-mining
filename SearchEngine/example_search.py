@@ -17,10 +17,10 @@ def config_logging():
 
 config_logging()
 
-query = "timetable"
+query = "ucl"
 
 se = searching.SearchEngine()
-search_results = se.search(query, limit=10, ranking=searching.SearchEngine.CUSTOM)
+search_results = se.search(query, limit=10, ranking=searching.SearchEngine.DFREE)
 
 print('Total results: %d' % len(search_results))
 for rank, doc in enumerate(search_results):

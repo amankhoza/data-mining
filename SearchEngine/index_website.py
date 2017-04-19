@@ -51,7 +51,7 @@ def main():
     args = parser.parse_args()
     config_logging(args.debug)
 
-    docs = parsing.UCLParser.parse_website(args.website_dir, multithreading=not args.debug)
+    docs = parsing.UCLParser.parse_website(args.website_dir, use_cache=True, multithreading=not args.debug)
     searching.index_docs(docs)
 
 
