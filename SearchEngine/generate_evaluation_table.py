@@ -1,5 +1,6 @@
 from searching import SearchEngine
 from utils import check_python_version
+import pandas as pd
 
 SEARCH_LIMIT = 10
 DISPLAY_LIMIT = 10
@@ -15,9 +16,17 @@ queries = ['exam timetable', 'MEng Computer Science programme', 'syllabus', 'UCL
            'online resources', 'turnitin', 'databases slides', 'holiday schedule', 'final grades', 'assessment', 'privacy',
            'safety measures', 'how to host a web page on a UCL server', 'coursework deadline policy', 'late submission']
 
+
+def get_relevance(query, url):
+    relevance_df = relevances_df[(relevances_df['query']==query) & (relevances_df['url']==url)]
+    return int(relevance_df['relevance'].values[0])
+
+
 check_python_version()
 
 store = {}
+
+relevances_df = pd.read_csv('user_relevancies.csv')
 
 se = SearchEngine()
 
@@ -52,13 +61,12 @@ out.write(headers+'\n')
 # example headers
 # query,url,title,description,relevance,index_bm25,index_tf_idf,index_pagerank
 
-# print(store)
-
 for query in store:
     for url in store[query]:
         title = store[query][url]['title']
         desc = store[query][url]['desc']
-        out.write('"{}","{}","{}","{}",'.format(query, url, title, desc))
+        relevance = get_relevance(query, url)
+        out.write('"{}","{}","{}","{}",{}'.format(query, url, title, desc, relevance))
         for algo in algorithms:
             algo_index = store[query][url][algo]
             out.write(',{}'.format(algo_index))
