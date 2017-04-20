@@ -143,14 +143,15 @@ if __name__ == "__main__":
     for (query, algo) in results_with_relevancies:
         indexes = range(1, len(results_with_relevancies[(query, algo)])+1)
         relevances = [r for doc, r in results_with_relevancies[(query, algo)]]
+        if -1 in relevances:
+            continue
         ndcg = normalised_discounted_cumulative_gain(indexes, relevances)
         if query not in evaluation_results:
             evaluation_results[query] = {}
         evaluation_results[query][algo] = ndcg
         if algo not in ndcgs_per_algo:
             ndcgs_per_algo[algo] = []
-        if ndcg >= 0:
-            ndcgs_per_algo[algo].append(ndcg)
+        ndcgs_per_algo[algo].append(ndcg)
 
     for q in sorted(evaluation_results, key=lambda x: x[0]):
         print(q, evaluation_results[q])
