@@ -102,10 +102,10 @@ def cumulative_gain(relevances):
 
 def discounted_cumulative_gain(indexes, relevances):
     n = len(indexes)
-    dcg = 0
+    dcg_sum = 0
     for i in range(0, n):
-        dcg += rel_log(indexes[i], relevances[i])
-    return dcg
+        dcg_sum += rel_log(indexes[i], relevances[i])
+    return dcg_sum / n
 
 
 def sort_relevances(relevances):
