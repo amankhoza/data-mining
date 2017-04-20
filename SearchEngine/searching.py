@@ -98,7 +98,6 @@ class SearchEngine(object):
     PAGERANK = 'pagerank'
     CUSTOM = 'custom'
 
-
     def __init__(self):
         try:
             self.ix = index.open_dir(INDEX_BASE_DIR)
@@ -194,6 +193,5 @@ class SearchEngine(object):
                 logger.info("\tScored docs: %d", results.scored_length())
 
                 for result in results:
-                    print(result.score)
                     docs.append(Document(**result.fields()))
         return docs
