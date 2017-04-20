@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from pprint import pprint
 
 import math
@@ -60,6 +61,17 @@ def index_documents(docs):
                 logger.info('Directory created successfully.')
             except Exception as e:
                 raise Exception('Failed to create directory for index: ' + str(e))
+
+        else:
+            logger.info('Index directory found. Deleting old index files...')
+            for file in os.listdir(INDEX_BASE_DIR):
+                file_path = os.path.join(INDEX_BASE_DIR, file)
+                try:
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    raise Exception('Failed to remove old index files: ' + str(e))
+            logger.info('Old index files deleted successfully.')
 
         ix = index.create_in(INDEX_BASE_DIR, schema=schema)
         writer = ix.writer(limitmb=256, procs=cpu_count(), multisegment=True)

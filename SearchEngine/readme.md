@@ -27,6 +27,8 @@ First of all, make sure that the required dependencies are installed.
 1. Indexing
 
    To index a website, run the [index_website.py](index_website.py) script from the terminal or command line. The website directory (local path) should be passed as an argument.
+   
+   **NOTE**: When the indexer is ran, the old index files (if present) will be deleted!
 
    E.g. `python index_website.py "/path/to/website/directory/"`
 
