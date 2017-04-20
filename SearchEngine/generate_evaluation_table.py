@@ -5,7 +5,7 @@ import pandas as pd
 SEARCH_LIMIT = 10
 DISPLAY_LIMIT = 10
 
-algorithms = [SearchEngine.BM25, SearchEngine.TF_IDF, SearchEngine.PAGERANK]
+algorithms = [SearchEngine.BM25, SearchEngine.TF_IDF, SearchEngine.PAGERANK, SearchEngine.CUSTOM]
 queries = ['exam timetable', 'MEng Computer Science programme', 'syllabus', 'UCL societies', 'MEng entry requirements',
            'BSc entry requirements', 'UCL computer science (should direct to home page)', 'BSc Computer Science programme',
            'password change', 'unix', 'David Barber', 'Graham Roberts', 'how to change the cs account password', 'UCL servers',
